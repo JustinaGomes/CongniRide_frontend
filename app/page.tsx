@@ -24,7 +24,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 /* ---------------- TYPES ---------------- */
 
-type PageType = "home" | "insights" | "camera";
+type PageType = "home" | "insights" | "camera" | "profile";
 type InsightMode = "emotion" | "driver";
 type CameraMode = "emotion" | "driver";
 
@@ -80,10 +80,40 @@ export default function Page() {
   const [cameraMode, setCameraMode] = useState<CameraMode>("emotion");
   const [open, setOpen] = useState(false);
   const [dialog, setDialog] = useState<string | null>(null);
+  const [loginWarning, setLoginWarning] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<"login" | "signup" | null>(null);
+  
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const webcamRef = useRef<Webcam>(null);
   const telemetry = useTelemetry();
+  const startCapture = () => {
+  if (capturing) return;
+setCapturing(true);
+  setCountdown(30);
+
+  const timer = setInterval(() => {
+    setCountdown((prev) => {
+      if (prev === null) return null;
+      if (prev <= 1) {
+        clearInterval(timer);
+
+        const imageSrc = webcamRef.current?.getScreenshot();
+        console.log("Captured:", imageSrc);
+
+        setCapturing(false);
+        setCountdown(null);
+        setPage("insights");
+
+        return null;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+};
+  
 
   const emotions = [
     { name: "Happy", value: 72, color: "#22c55e" },
@@ -111,12 +141,12 @@ export default function Page() {
   };
 
   const timeline = [
-    { t: "10:00", risk: 10 },
-    { t: "10:05", risk: 22 },
-    { t: "10:10", risk: 18 },
-    { t: "10:15", risk: 35 },
-    { t: "10:20", risk: 28 },
-    { t: "10:25", risk: 48 },
+    { t: "Last 30s", risk: 10 },
+    { t: "Last 25s", risk: 22 },
+    { t: "Last 20s", risk: 18 },
+    { t: "Last 15s", risk: 35 },
+    { t: "Last 10s", risk: 28 },
+    { t: "Last 5s", risk: 48 },
   ];
 
   const pageAnim = {
@@ -144,7 +174,13 @@ export default function Page() {
               {["home", "insights", "camera"].map((item) => (
                 <button
                   key={item}
-                  onClick={() => setPage(item as PageType)}
+                  onClick={() => {
+  if (!isLoggedIn && item !== "home") {
+    setLoginWarning("Please log in to view insights and live monitoring.");
+    return;
+  }
+  setPage(item as PageType);
+}}
                   className="relative px-6 py-2 text-sm font-medium"
                 >
                   {page === item && (
@@ -171,15 +207,60 @@ export default function Page() {
             </button>
 
             {open && (
-              <div className="absolute right-0 mt-3 w-40 bg-white rounded-xl shadow-md border py-2">
-                <button className="block px-4 py-2 text-sm hover:bg-gray-100 w-full text-left">
-                  Profile
-                </button>
-                <button className="block px-4 py-2 text-sm hover:bg-gray-100 w-full text-left">
-                  Logout
-                </button>
-              </div>
-            )}
+  <div className="absolute right-0 mt-3 w-40 bg-white rounded-xl shadow-md border py-2">
+    
+    {!isLoggedIn ? (
+      <>
+        <button
+  onClick={() => {
+    setIsLoggedIn(true);
+    setAuthMode("login");
+    setPage("profile");
+    setOpen(false);
+  }}
+  className="block px-4 py-2 text-sm hover:bg-gray-100 w-full text-left"
+>
+  Login
+</button>
+
+        <button
+          onClick={() => {
+            setAuthMode("signup");
+            setOpen(false);
+          }}
+          className="block px-4 py-2 text-sm hover:bg-gray-100 w-full text-left"
+        >
+          Sign Up
+        </button>
+      </>
+    ) : (
+      <>
+        <button
+          onClick={() => {
+            setPage("profile");
+            setOpen(false);
+          }}
+          className="block px-4 py-2 text-sm hover:bg-gray-100 w-full text-left"
+        >
+          Profile
+        </button>
+
+        <button
+          onClick={() => {
+            setIsLoggedIn(false);
+            setPage("home");
+            setOpen(false);
+          }}
+          className="block px-4 py-2 text-sm hover:bg-gray-100 w-full text-left"
+        >
+          Logout
+        </button>
+      </>
+    )}
+
+  </div>
+)}
+            
           </div>
         </motion.nav>
       </div>
@@ -202,24 +283,33 @@ export default function Page() {
                     and cognitive alertness- helping prevent accidents and promote safer 
                     driving.
                   </p>
+{!isLoggedIn && (
+  <div className="flex gap-6">
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      onClick={() => {
+        setIsLoggedIn(true);
+        setAuthMode("login");
+        setPage("profile");
+      }}
+      className="px-8 py-4 rounded-xl bg-blue-600 text-white border-2 border-blue-400 shadow-xl"
+    >
+      Log In
+    </motion.button>
 
-                  <div className="flex gap-6">
-  <motion.button
-    whileHover={{ scale: 1.05 }}
-    onClick={() => setAuthMode("login")}
-    className="px-8 py-4 rounded-xl bg-blue-600 text-white border-2 border-blue-400 shadow-xl"
-  >
-    Log In
-  </motion.button>
-
-  <motion.button
-    whileHover={{ scale: 1.05 }}
-    onClick={() => setAuthMode("signup")}
-    className="px-8 py-4 rounded-xl bg-white text-blue-600 border-2 border-blue-600 shadow-lg"
-  >
-    Sign Up
-  </motion.button>
-</div>
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      onClick={() => {
+        setIsLoggedIn(true);
+        setAuthMode("signup");
+        setPage("profile");
+      }}
+      className="px-8 py-4 rounded-xl bg-white text-blue-600 border-2 border-blue-600 shadow-lg"
+    >
+      Sign Up
+    </motion.button>
+  </div>
+)}
                 </div>
 
                 <div className="relative flex justify-center">
@@ -247,11 +337,121 @@ export default function Page() {
               </div>
             </motion.div>
           )}
+            {page === "profile" && isLoggedIn && (
+  <motion.div key="profile" {...pageAnim} className="space-y-8">
+    
+    {/* HEADER CARD */}
+    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 flex flex-col md:flex-row items-center gap-8">
+      
+      {/* Avatar + Score */}
+      <div className="relative flex flex-col items-center">
+        <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-blue-500 to-blue-400 flex items-center justify-center text-white text-3xl font-semibold shadow-lg">
+          AG
+        </div>
+
+        <div className="absolute -bottom-3 bg-white px-4 py-1 rounded-full shadow text-xs font-medium text-gray-600">
+          Verified Driver
+        </div>
+      </div>
+
+      {/* Driver Info */}
+      <div className="flex-1 text-center md:text-left">
+        <h2 className="text-3xl font-semibold">Annie Gayen</h2>
+        <p className="text-gray-500">Smart Driver • Evening Commuter</p>
+
+        <div className="flex flex-wrap gap-6 mt-4 justify-center md:justify-start">
+          <div>
+            <p className="text-sm text-gray-500">Experience</p>
+            <p className="font-semibold">2 Years</p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500">Age Group</p>
+            <p className="font-semibold">18-25</p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500">Driving Time</p>
+            <p className="font-semibold">Evening</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Safety Score Ring */}
+      <div className="flex flex-col items-center">
+        <div className="relative w-24 h-24">
+          <svg className="transform -rotate-90" viewBox="0 0 36 36">
+            <path
+              d="M18 2.5 a 15.5 15.5 0 1 1 0 31 a 15.5 15.5 0 1 1 0 -31"
+              fill="none"
+              stroke="#E5E7EB"
+              strokeWidth="3"
+            />
+            <path
+              d="M18 2.5 a 15.5 15.5 0 1 1 0 31"
+              fill="none"
+              stroke="#2563EB"
+              strokeWidth="3"
+              strokeDasharray="85, 100"
+            />
+          </svg>
+
+          <div className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-blue-600">
+            85
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">Safety Score</p>
+      </div>
+    </div>
+
+    {/* DRIVER INSIGHTS */}
+    <div className="grid md:grid-cols-3 gap-6">
+      
+      {[
+        { label: "Alertness", value: "High", color: "text-green-600" },
+        { label: "Fatigue Risk", value: "Low", color: "text-green-600" },
+        { label: "Emotional Stability", value: "Moderate", color: "text-orange-500" },
+      ].map((item) => (
+        <motion.div
+          key={item.label}
+          whileHover={{ y: -4 }}
+          className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
+        >
+          <p className="text-sm text-gray-500">{item.label}</p>
+          <p className={`text-xl font-semibold ${item.color}`}>
+            {item.value}
+          </p>
+        </motion.div>
+      ))}
+    </div>
+
+    {/* CONTACT & SAFETY */}
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between gap-6">
+      <div>
+        <p className="text-sm text-gray-500">Email</p>
+        <p className="font-medium">annie@email.com</p>
+      </div>
+
+      <div>
+        <p className="text-sm text-gray-500">Emergency Contact</p>
+        <p className="font-medium">+91 6666 5555</p>
+      </div>
+
+      <div>
+        <p className="text-sm text-gray-500">System Status</p>
+        <p className="text-green-600 font-medium">
+          Monitoring Active
+        </p>
+      </div>
+    </div>
+
+  </motion.div>
+)}
 
           {/* INSIGHTS AND CAMERA PAGES REMAIN 100% UNCHANGED BELOW */}
 
           {/* INSIGHTS */}
-          {page === "insights" && (
+          {page === "insights" && isLoggedIn && (
             <motion.div key="insights" {...pageAnim}>
               {/* toggle */}
               <div className="flex gap-3 mb-10">
@@ -311,10 +511,19 @@ export default function Page() {
             </div>
 
             <p className="text-xs text-gray-500 mt-3">{suggestion}</p>
+           
           </motion.div>
         );
       })}
     </div>
+    <div className="flex justify-center mt-10">
+  <button
+    onClick={() => setPage("camera")}
+    className="px-6 py-2 rounded-full bg-blue-600 text-white text-sm shadow hover:bg-blue-700 transition"
+  >
+    Recapture
+  </button>
+</div>
 
     {/* Dialog Alert */}
     <AnimatePresence>
@@ -378,13 +587,22 @@ export default function Page() {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+                  <div className="flex justify-center mt-10">
+  <button
+    onClick={() => setPage("camera")}
+    className="px-6 py-2 rounded-full bg-blue-600 text-white text-sm shadow hover:bg-blue-700 transition"
+  >
+    Recapture
+  </button>
+</div>
                 </div>
+                
               )}
             </motion.div>
           )}
 
           {/* CAMERA */}
-          {page === "camera" && (
+          {page === "camera" && isLoggedIn && (
             <motion.div key="camera" {...pageAnim}>
               <div className="flex gap-3 mb-8">
                 {["emotion", "driver"].map((m) => (
@@ -402,7 +620,11 @@ export default function Page() {
 
               <div className="grid md:grid-cols-2 gap-10">
                 <div className="relative bg-white rounded-2xl p-4 shadow-sm">
-                  <Webcam ref={webcamRef} className="rounded-xl w-full" />
+                  <Webcam
+  ref={webcamRef}
+  screenshotFormat="image/jpeg"
+  className="rounded-xl w-full"
+/>
 
                   <div className="absolute top-3 left-3 px-3 py-1 bg-black/60 text-white text-xs rounded-full">
                     LIVE
@@ -462,12 +684,54 @@ export default function Page() {
                     </div>
                   </div>
                 )}
+                <div className="flex justify-center mt-6">
+                <button
+                  onClick={startCapture}
+                  disabled={capturing}
+                  className="px-6 py-2 rounded-full bg-blue-600 text-white text-sm shadow hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  {capturing ? `Capturing in ${countdown}s` : "Capture"}
+                </button>
+              </div>
               </div>
             </motion.div>
           )}
 
         </AnimatePresence>
       </div>
+      {/* ================= LOGIN REQUIRED WARNING ================= */}
+<AnimatePresence>
+  {loginWarning && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/20 flex items-center justify-center z-50"
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 30 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 30 }}
+        className="bg-white rounded-2xl p-6 shadow-xl max-w-sm mx-4"
+      >
+        <h3 className="font-semibold text-lg mb-2">
+          Login Required
+        </h3>
+
+        <p className="text-sm text-gray-600 mb-6">
+          {loginWarning}
+        </p>
+
+        <button
+          onClick={() => setLoginWarning(null)}
+          className="w-full py-2 rounded-xl bg-blue-600 text-white text-sm"
+        >
+          Got it
+        </button>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
       {/* ================= ENHANCED AUTH MODAL ================= */}
 <AnimatePresence>
   {authMode && (
